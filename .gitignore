@@ -1,0 +1,25 @@
+# Build outputs
+/build/
+/app/build/
+*.iml
+.gradle/
+.idea/
+local.properties
+.cxx/
+.DS_Store
+
+# Gradle wrapper distribution cache (jar itself is fine to commit if present)
+gradle-wrapper.jar.tmp
+
+# Large offline model/native-lib assets: obtained locally per README.md,
+# not committed to keep the repo small. Placeholder READMEs are kept.
+/app/src/main/assets/sherpa-onnx-whisper-tiny/*.onnx
+/app/src/main/assets/sherpa-onnx-whisper-tiny/*.txt
+/app/src/main/assets/espeak-ng-data/*
+!/app/src/main/assets/espeak-ng-data/README.md
+
+/app/src/main/jniLibs/*/*.so
+
+/app/src/main/cpp/espeak-ng/include/*
+!/app/src/main/cpp/espeak-ng/include/.gitkeep
+/app/src/main/cpp/espeak-ng/lib/*/*.so
