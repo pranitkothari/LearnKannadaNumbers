@@ -18,8 +18,11 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
-            // arm64-v8a covers real devices (incl. Galaxy Fold5); x86_64 covers the emulator.
-            abiFilters += listOf("arm64-v8a", "x86_64")
+            // arm64-v8a only: that's what the bundled prebuilt libespeak-ng.so covers
+            // (and it's what real devices, incl. Galaxy Fold5, use). Add an x86_64
+            // libespeak-ng.so under cpp/espeak-ng/lib/x86_64/ yourself if you need the
+            // emulator to also run offline TTS.
+            abiFilters += listOf("arm64-v8a")
         }
 
         externalNativeBuild {

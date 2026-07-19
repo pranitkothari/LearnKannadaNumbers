@@ -1,6 +1,11 @@
 # Whisper-tiny (multilingual) model files go here
 
-This directory must contain, before building:
+This is the one offline asset this repo doesn't bundle - the model is
+hosted on HuggingFace, which the environment this app was built in
+couldn't reach (network policy blocked huggingface.co entirely). Everything
+else (espeak-ng, sherpa-onnx's native libraries) is already committed.
+
+Before building, this directory must contain:
 
 - `tiny-encoder.int8.onnx`
 - `tiny-decoder.int8.onnx`
@@ -8,6 +13,4 @@ This directory must contain, before building:
 
 Source: https://huggingface.co/csukuangfj/sherpa-onnx-whisper-tiny
 
-See the root `README.md` ("Setting up offline speech recognition") for the full
-download steps. This placeholder `README.md` should be deleted once the real
-model files are in place (don't ship both).
+Delete this placeholder `README.md` once the real model files are in place.

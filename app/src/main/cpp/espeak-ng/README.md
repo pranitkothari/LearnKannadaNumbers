@@ -1,16 +1,11 @@
-# Vendored espeak-ng goes here
+# Vendored espeak-ng
 
-Before building, this directory must contain:
+`include/espeak-ng/` and `lib/arm64-v8a/libespeak-ng.so` are prebuilt
+binaries + headers from
+https://github.com/HeyLetsLearnSomething/eSpeak-libespeak-ng.so
+(GPL-3.0 - see the repo root `LICENSE`; this app is GPL-3.0 as a result).
 
-- `include/espeak-ng/speak_lib.h` (and the other espeak-ng public headers it pulls in)
-- `lib/arm64-v8a/libespeak-ng.so`
-- `lib/x86_64/libespeak-ng.so`
-
-Source options:
-
-- Prebuilt: https://github.com/HeyLetsLearnSomething/eSpeak-libespeak-ng.so
-- Build from source with the NDK: https://github.com/espeak-ng/espeak-ng
-  (see its `android/` directory)
-
-See the root `README.md` ("Setting up offline TTS") for details. `CMakeLists.txt`
-in the parent directory expects exactly this layout.
+`CMakeLists.txt` in the parent directory links against this. If you need
+another ABI (e.g. `x86_64` for the emulator), add
+`lib/x86_64/libespeak-ng.so` yourself and add that ABI back to
+`abiFilters` in `app/build.gradle.kts`.

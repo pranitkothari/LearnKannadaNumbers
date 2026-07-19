@@ -11,15 +11,9 @@ local.properties
 # Gradle wrapper distribution cache (jar itself is fine to commit if present)
 gradle-wrapper.jar.tmp
 
-# Large offline model/native-lib assets: obtained locally per README.md,
-# not committed to keep the repo small. Placeholder READMEs are kept.
+# The Whisper-tiny (multilingual) model weights are the one offline asset not
+# committed - they're hosted on HuggingFace, which this sandboxed dev
+# environment couldn't reach. Everything else (espeak-ng data/libs,
+# sherpa-onnx native libs) is committed. See README.md.
 /app/src/main/assets/sherpa-onnx-whisper-tiny/*.onnx
 /app/src/main/assets/sherpa-onnx-whisper-tiny/*.txt
-/app/src/main/assets/espeak-ng-data/*
-!/app/src/main/assets/espeak-ng-data/README.md
-
-/app/src/main/jniLibs/*/*.so
-
-/app/src/main/cpp/espeak-ng/include/*
-!/app/src/main/cpp/espeak-ng/include/.gitkeep
-/app/src/main/cpp/espeak-ng/lib/*/*.so

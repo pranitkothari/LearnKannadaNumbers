@@ -9,10 +9,10 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
- * Offline Kannada text-to-speech via espeak-ng (bundled as a native library,
- * see README.md "Setting up offline TTS" for how to vendor it). espeak-ng
- * needs its voice/phoneme data on a real filesystem path, so on first run we
- * copy assets/espeak-ng-data/ out to internal storage.
+ * Offline Kannada text-to-speech via espeak-ng (bundled native library, see
+ * app/src/main/cpp/espeak-ng/README.md for provenance). espeak-ng needs its
+ * voice/phoneme data on a real filesystem path, so on first run we copy
+ * assets/espeak-ng-data/ out to internal storage.
  */
 class KannadaTts(private val context: Context) {
 

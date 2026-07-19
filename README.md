@@ -19,6 +19,9 @@ at runtime.
 
 No internet permission is requested or used anywhere in the app.
 
+**License:** GPL-3.0 (see `LICENSE`) - this app bundles espeak-ng, which is
+GPL-3.0, so the combined app is too.
+
 ## Project layout
 
 ```
@@ -37,45 +40,33 @@ app/src/main/java/com/k2fsa/sherpa/onnx/
 app/src/main/cpp/
   espeak_bridge.c            - small JNI bridge around espeak-ng's
                                 synchronous synth API
-  espeak-ng/                 - vendored espeak-ng headers + .so (you add this)
+  espeak-ng/                 - vendored espeak-ng headers + .so (bundled)
+app/src/main/jniLibs/arm64-v8a/
+  libsherpa-onnx-jni.so, libonnxruntime.so  - sherpa-onnx native libs (bundled)
+  libespeak-ng.so, libc++_shared.so         - espeak-ng native libs (bundled)
 ```
 
 ## Before you can build
 
-This app depends on two offline speech engines whose binary assets are
-**not committed to this repo** (they're large, and versioned/licensed
-separately). You need to fetch them once, locally:
+Almost everything offline this app needs is already committed - native
+libraries for both sherpa-onnx and espeak-ng, and espeak-ng's full voice/
+dictionary data (including Kannada). See `app/src/main/jniLibs/README.md`
+and `app/src/main/cpp/espeak-ng/README.md` for exactly where each came from.
 
-### 1. Offline speech recognition (sherpa-onnx + Whisper-tiny)
+**One thing is missing**: the Whisper-tiny (multilingual) *model weights*
+themselves. They're hosted on HuggingFace, which the network this app was
+built in couldn't reach at all (everything else above came from Maven
+Central and raw.githubusercontent.com, which were reachable). You need to
+fetch these once, locally:
 
-a) Native libraries - download a `sherpa-onnx-vX.Y.Z-android.tar.bz2` from
-   https://github.com/k2-fsa/sherpa-onnx/releases (use the latest release),
-   extract it, and copy the matching `libonnxruntime.so` +
-   `libsherpa-onnx-jni.so` pair into:
-   - `app/src/main/jniLibs/arm64-v8a/`
-   - `app/src/main/jniLibs/x86_64/` (only needed for the emulator)
+Download the multilingual Whisper-tiny export from
+https://huggingface.co/csukuangfj/sherpa-onnx-whisper-tiny and place
+`tiny-encoder.int8.onnx`, `tiny-decoder.int8.onnx`, `tiny-tokens.txt`
+into `app/src/main/assets/sherpa-onnx-whisper-tiny/` (delete the
+placeholder `README.md` there once the real files are in place).
 
-b) Model files - download the multilingual Whisper-tiny export from
-   https://huggingface.co/csukuangfj/sherpa-onnx-whisper-tiny and place
-   `tiny-encoder.int8.onnx`, `tiny-decoder.int8.onnx`, `tiny-tokens.txt`
-   into `app/src/main/assets/sherpa-onnx-whisper-tiny/` (delete the
-   placeholder `README.md` there once real files are in place).
-
-### 2. Offline text-to-speech (espeak-ng, Kannada voice)
-
-a) Native library + headers - get a prebuilt `libespeak-ng.so` (e.g. from
-   https://github.com/HeyLetsLearnSomething/eSpeak-libespeak-ng.so) or build
-   espeak-ng from source with the NDK, and place:
-   - headers under `app/src/main/cpp/espeak-ng/include/`
-   - `libespeak-ng.so` under `app/src/main/cpp/espeak-ng/lib/arm64-v8a/`
-     and `.../lib/x86_64/`
-
-b) Voice/dictionary data - copy espeak-ng's `espeak-ng-data` directory
-   contents into `app/src/main/assets/espeak-ng-data/` (delete the
-   placeholder `README.md` there once real files are in place).
-
-Both steps happen once, on your dev machine, before building - the shipped
-APK makes no network calls.
+That's a one-time step on your dev machine before building - the shipped
+APK itself makes no network calls.
 
 ## Building
 
@@ -87,11 +78,19 @@ and the Android SDK/NDK configured:
 gradle assembleDebug
 ```
 
+Only `arm64-v8a` is built (matches real devices, incl. Galaxy Fold5); the
+emulator (`x86_64`) isn't supported unless you add `x86_64` native libs
+yourself for both sherpa-onnx and espeak-ng and add that ABI back to
+`abiFilters` in `app/build.gradle.kts`.
+
 **This sandboxed environment has no Android SDK or NDK installed**, so none
-of this app's code has been compiled or run here - I've written it against
-the real, verified sherpa-onnx Kotlin API (fetched from its GitHub source)
-and the documented espeak-ng C API, but you'll want to do a first real build
-and a pass through the app on a device to catch anything a compiler would.
+of this app's code has been compiled or run here. To de-risk that as much as
+possible without a compiler: the Kotlin API in `com.k2fsa.sherpa.onnx` and
+the C code in `espeak_bridge.c` were written against the real upstream
+sources (fetched and read, not recalled from memory), and the JNI symbol
+names exported by the bundled `libsherpa-onnx-jni.so` were checked with
+`strings`/`readelf` to confirm they match what that Kotlin API expects. You'll
+still want to do a first real build and a pass through the app on a device.
 
 ## Known gaps / things worth checking
 
@@ -107,3 +106,10 @@ and a pass through the app on a device to catch anything a compiler would.
   it's a single constant, easy to adjust.
 - **espeak-ng's Kannada voice** is formant-synthesized, not a natural human
   voice - intelligible but robotic.
+- **Native library provenance**: `libsherpa-onnx-jni.so` and `libonnxruntime.so`
+  came from a third-party Maven republish (`com.bihe0832.android`) of the
+  official k2-fsa/sherpa-onnx build output, not built from source here (no NDK
+  available). JNI symbol names were verified to match, but you may prefer to
+  rebuild these yourself from official source for anything beyond personal use.
+- **GPL-3.0**: bundling espeak-ng makes the whole app GPL-3.0 (see `LICENSE`).
+  If that's not what you want, espeak-ng needs to be swapped out.
