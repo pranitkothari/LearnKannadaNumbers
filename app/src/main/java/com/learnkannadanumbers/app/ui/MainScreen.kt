@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -96,14 +95,12 @@ fun MainScreen(
                         onClick = onMicTapped,
                         enabled = canListen,
                     ) {
-                        Icon(Icons.Filled.Mic, contentDescription = null, modifier = Modifier.size(20.dp))
                         Text(
                             text = when (uiState.roundState) {
-                                RoundState.Listening -> "  Listening..."
-                                RoundState.Processing -> "  Checking..."
-                                else -> "  Speak the number in Kannada"
+                                RoundState.Listening -> "🎤  Listening..."
+                                RoundState.Processing -> "🎤  Checking..."
+                                else -> "🎤  Speak the number in Kannada"
                             },
-                            modifier = Modifier.padding(start = 8.dp),
                         )
                     }
                 }
