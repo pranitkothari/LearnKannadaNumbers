@@ -32,6 +32,20 @@ android {
         }
     }
 
+    signingConfigs {
+        getByName("debug") {
+            // A fixed, checked-in debug keystore (not a secret - "android"/"androiddebugkey"
+            // is the standard, publicly-known debug signing convention). This matters because
+            // CI runners are ephemeral: without a fixed keystore, AGP would auto-generate a
+            // new random one on every build, so installing a new build over an old one would
+            // fail with "App not installed" (signature mismatch) every single time.
+            storeFile = file("../keystore/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -40,9 +54,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            // Reuses the auto-generated debug keystore so this still installs without
-            // setting up a real signing key. Fine for personal/sideloaded use; a real
-            // release (e.g. Play Store) needs its own signing config instead.
+            // Reuses the debug keystore above so this still installs without a real signing
+            // key. Fine for personal/sideloaded use; a real release (e.g. Play Store) needs
+            // its own signing config instead.
             signingConfig = signingConfigs.getByName("debug")
         }
     }
