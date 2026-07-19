@@ -75,8 +75,14 @@ first sync), or from the command line with a system-installed Gradle 8.14+
 and the Android SDK/NDK configured:
 
 ```
-gradle assembleDebug
+gradle assembleRelease   # minified/optimized, much faster - recommended
+gradle assembleDebug     # unoptimized, for debugging only
 ```
+
+Both build types are debug-signed (see `app/build.gradle.kts`), so both
+install fine when sideloaded - `release` just isn't set up for Play Store
+distribution. A CI workflow (`.github/workflows/build-apk.yml`) also builds
+both and publishes them to a rolling GitHub Release on every push.
 
 Only `arm64-v8a` is built (matches real devices, incl. Galaxy Fold5); the
 emulator (`x86_64`) isn't supported unless you add `x86_64` native libs

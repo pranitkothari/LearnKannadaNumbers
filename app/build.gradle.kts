@@ -34,11 +34,16 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            // Reuses the auto-generated debug keystore so this still installs without
+            // setting up a real signing key. Fine for personal/sideloaded use; a real
+            // release (e.g. Play Store) needs its own signing config instead.
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 

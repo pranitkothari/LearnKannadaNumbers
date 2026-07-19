@@ -1,4 +1,4 @@
-name: Build debug APK
+name: Build APKs
 
 on:
   push:
@@ -46,24 +46,40 @@ jobs:
         with:
           gradle-version: 8.14.3
 
-      - name: Build debug APK
-        run: gradle assembleDebug --stacktrace
+      # Release is minified/shrunk (R8) and much faster to run than debug -
+      # debug-signed though, so it installs without a real signing key.
+      - name: Build debug + release APKs
+        run: gradle assembleDebug assembleRelease --stacktrace
 
-      - name: Locate APK
+      - name: Locate APKs
         id: apk
-        run: echo "path=$(find app/build/outputs/apk/debug -name '*.apk' | head -1)" >> "$GITHUB_OUTPUT"
+        run: |
+          debug=$(find app/build/outputs/apk/debug -name '*.apk' | head -1)
+          release=$(find app/build/outputs/apk/release -name '*.apk' | head -1)
+          echo "debug=$debug" >> "$GITHUB_OUTPUT"
+          echo "release=$release" >> "$GITHUB_OUTPUT"
 
-      - name: Upload APK as workflow artifact
+      - name: Upload APKs as workflow artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: kannada-numbers-debug-apk
-          path: ${{ steps.apk.outputs.path }}
+          name: kannada-numbers-apks
+          path: |
+            ${{ steps.apk.outputs.debug }}
+            ${{ steps.apk.outputs.release }}
 
-      - name: Publish/update release with APK
+      - name: Publish/update release with APKs
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest-debug-build
-          name: Latest debug build
-          body: "Automatically built from ${{ github.sha }}. Debug build - not signed for release."
+          name: Latest build
+          body: |
+            Automatically built from ${{ github.sha }}.
+
+            - **app-release.apk** - recommended; minified/optimized, much faster than debug
+            - **app-debug.apk** - unoptimized, only useful for debugging
+
+            Both are debug-signed (not suitable for Play Store), so both install fine when sideloaded.
           prerelease: true
-          files: ${{ steps.apk.outputs.path }}
+          files: |
+            ${{ steps.apk.outputs.debug }}
+            ${{ steps.apk.outputs.release }}
