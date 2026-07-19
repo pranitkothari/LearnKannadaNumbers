@@ -75,14 +75,23 @@ first sync), or from the command line with a system-installed Gradle 8.14+
 and the Android SDK/NDK configured:
 
 ```
-gradle assembleRelease   # minified/optimized, much faster - recommended
-gradle assembleDebug     # unoptimized, for debugging only
+gradle assembleRelease
+gradle assembleDebug
 ```
 
 Both build types are debug-signed (see `app/build.gradle.kts`), so both
 install fine when sideloaded - `release` just isn't set up for Play Store
 distribution. A CI workflow (`.github/workflows/build-apk.yml`) also builds
 both and publishes them to a rolling GitHub Release on every push.
+
+**R8 minification is currently disabled for `release`** - it was confirmed
+on a real device to crash the app before any UI (including a custom crash
+screen) could even render, while the unminified debug build ran fine. That
+isolates it to something R8 does (likely stripping/renaming something the
+JNI bridges or the sherpa-onnx reflection-based config classes need) rather
+than the native libraries themselves, but the exact missing proguard rule
+hasn't been identified yet - `isMinifyEnabled = true` reproduces the crash
+if you want to dig into it.
 
 Only `arm64-v8a` is built (matches real devices, incl. Galaxy Fold5); the
 emulator (`x86_64`) isn't supported unless you add `x86_64` native libs

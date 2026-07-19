@@ -48,8 +48,15 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = true
-            isShrinkResources = true
+            // R8 minification was confirmed (on-device) to crash this app before it
+            // could even show a diagnostic screen - the unminified debug build works
+            // fine, isolating it to something R8 does, not the native libraries
+            // themselves. Rather than keep guessing at proguard rules for an app this
+            // JNI-heavy (three separate native library integration points), minification
+            // is off until someone has time to bisect which rule is missing and verify
+            // a fix on a real device.
+            isMinifyEnabled = false
+            isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
