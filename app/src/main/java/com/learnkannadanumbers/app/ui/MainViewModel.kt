@@ -3,12 +3,15 @@ package com.learnkannadanumbers.app.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.learnkannadanumbers.app.clearBreadcrumb
 import com.learnkannadanumbers.app.data.KannadaNumbers
 import com.learnkannadanumbers.app.lastCrashFile
+import com.learnkannadanumbers.app.readLastBreadcrumb
 import com.learnkannadanumbers.app.speech.AudioRecorder
 import com.learnkannadanumbers.app.speech.FuzzyMatch
 import com.learnkannadanumbers.app.speech.KannadaTts
 import com.learnkannadanumbers.app.speech.SpeechRecognizerManager
+import com.learnkannadanumbers.app.writeBreadcrumb
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -43,20 +46,36 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var tts: KannadaTts? = null
 
     init {
-        val crashFile = lastCrashFile(getApplication<Application>())
-        if (crashFile.exists()) {
-            _uiState.update { it.copy(lastCrash = crashFile.readText()) }
+        val app = getApplication<Application>()
+        val crashFile = lastCrashFile(app)
+        val breadcrumb = readLastBreadcrumb(app)
+        val diagnostic = when {
+            crashFile.exists() -> "Caught a Kotlin/Java exception:\n\n" + crashFile.readText()
+            // A leftover breadcrumb that isn't the "finished" marker means the process
+            // died (almost certainly a native/JNI crash) partway through a previous
+            // launch, before ever reaching a point Java exception handling could see.
+            breadcrumb != null && breadcrumb != "all models loaded" ->
+                "No Kotlin exception was caught, which usually means a native (C/JNI) " +
+                    "crash - those kill the process before Java can see anything.\n\n" +
+                    "Last thing that started before the app died:\n$breadcrumb"
+            else -> null
+        }
+        if (diagnostic != null) {
+            _uiState.update { it.copy(lastCrash = diagnostic) }
         }
 
         viewModelScope.launch {
             try {
-                val context = getApplication<Application>()
-                val kannadaTts = KannadaTts(context)
+                writeBreadcrumb(app, "constructing KannadaTts (loads espeak_bridge native lib)")
+                val kannadaTts = KannadaTts(app)
                 withContext(Dispatchers.IO) {
-                    speechRecognizer = SpeechRecognizerManager(context)
+                    writeBreadcrumb(app, "constructing SpeechRecognizerManager (sherpa-onnx + onnxruntime + Whisper model load)")
+                    speechRecognizer = SpeechRecognizerManager(app)
+                    writeBreadcrumb(app, "calling KannadaTts.init() (espeak_Initialize native call)")
                     kannadaTts.init()
                 }
                 tts = kannadaTts
+                writeBreadcrumb(app, "all models loaded")
                 _uiState.update { it.copy(modelsReady = true) }
             } catch (t: Throwable) {
                 _uiState.update { it.copy(modelLoadError = t.message ?: "Failed to load offline speech models") }
@@ -65,7 +84,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun dismissLastCrash() {
-        lastCrashFile(getApplication<Application>()).delete()
+        val app = getApplication<Application>()
+        lastCrashFile(app).delete()
+        clearBreadcrumb(app)
         _uiState.update { it.copy(lastCrash = null) }
     }
 
