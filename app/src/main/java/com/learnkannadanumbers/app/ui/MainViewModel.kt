@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.learnkannadanumbers.app.data.KannadaNumbers
+import com.learnkannadanumbers.app.lastCrashFile
 import com.learnkannadanumbers.app.speech.AudioRecorder
 import com.learnkannadanumbers.app.speech.FuzzyMatch
 import com.learnkannadanumbers.app.speech.KannadaTts
@@ -29,6 +30,7 @@ data class MainUiState(
     val modelsReady: Boolean = false,
     val modelLoadError: String? = null,
     val roundState: RoundState = RoundState.Idle,
+    val lastCrash: String? = null,
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -41,6 +43,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var tts: KannadaTts? = null
 
     init {
+        val crashFile = lastCrashFile(getApplication<Application>())
+        if (crashFile.exists()) {
+            _uiState.update { it.copy(lastCrash = crashFile.readText()) }
+        }
+
         viewModelScope.launch {
             try {
                 val context = getApplication<Application>()
@@ -55,6 +62,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _uiState.update { it.copy(modelLoadError = t.message ?: "Failed to load offline speech models") }
             }
         }
+    }
+
+    fun dismissLastCrash() {
+        lastCrashFile(getApplication<Application>()).delete()
+        _uiState.update { it.copy(lastCrash = null) }
     }
 
     fun onNumberInputChanged(text: String) {

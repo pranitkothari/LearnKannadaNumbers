@@ -6,7 +6,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.weight
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
@@ -19,6 +23,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -31,7 +36,13 @@ fun MainScreen(
     onNumberInputChanged: (String) -> Unit,
     onMicTapped: () -> Unit,
     onRequestMicPermission: () -> Unit,
+    onDismissCrash: () -> Unit,
 ) {
+    if (uiState.lastCrash != null) {
+        CrashReportScreen(crashText = uiState.lastCrash, onDismiss = onDismissCrash)
+        return
+    }
+
     Scaffold { innerPadding ->
         Column(
             modifier = Modifier
@@ -106,6 +117,47 @@ fun MainScreen(
                 }
 
                 FeedbackArea(uiState.roundState)
+            }
+        }
+    }
+}
+
+@Composable
+private fun CrashReportScreen(crashText: String, onDismiss: () -> Unit) {
+    Scaffold { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(16.dp),
+        ) {
+            Text(
+                text = "The app crashed last time",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = "Screenshot this and send it over.",
+                modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
+            )
+            SelectionContainer(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                Text(
+                    text = crashText,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 12.sp,
+                )
+            }
+            Button(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp),
+            ) {
+                Text("Dismiss and continue")
             }
         }
     }

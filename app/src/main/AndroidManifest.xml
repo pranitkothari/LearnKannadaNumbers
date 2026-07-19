@@ -6,6 +6,7 @@
     <!-- No internet permission is requested: this app never talks to the network. -->
 
     <application
+        android:name=".KannadaNumbersApplication"
         android:allowBackup="true"
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name"

@@ -45,6 +45,7 @@ class MainActivity : ComponentActivity() {
                     onRequestMicPermission = {
                         permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                     },
+                    onDismissCrash = viewModel::dismissLastCrash,
                 )
             }
         }
