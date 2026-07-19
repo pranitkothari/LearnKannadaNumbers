@@ -24,7 +24,7 @@ sealed interface RoundState {
     data object Listening : RoundState
     data object Processing : RoundState
     data class Correct(val heard: String) : RoundState
-    data class Incorrect(val heard: String, val expected: String) : RoundState
+    data class Incorrect(val heard: String, val expected: String, val expectedTransliteration: String) : RoundState
 }
 
 data class MainUiState(
@@ -121,7 +121,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             if (FuzzyMatch.isMatch(heard, expected)) {
                 _uiState.update { it.copy(roundState = RoundState.Correct(heard)) }
             } else {
-                _uiState.update { it.copy(roundState = RoundState.Incorrect(heard, expected)) }
+                val transliteration = KannadaNumbers.transliterationFor(target)
+                _uiState.update { it.copy(roundState = RoundState.Incorrect(heard, expected, transliteration)) }
                 tts?.speak(expected)
             }
         }

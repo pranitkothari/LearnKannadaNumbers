@@ -194,7 +194,7 @@ private fun FeedbackArea(roundState: RoundState) {
                     text = "You said: ${roundState.heard.ifBlank { "(nothing heard)" }}",
                     modifier = Modifier.padding(top = 8.dp),
                 )
-                Text(text = "Correct: ${roundState.expected}")
+                Text(text = "Correct: ${roundState.expected} (${roundState.expectedTransliteration})")
             }
         }
         else -> Unit

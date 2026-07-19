@@ -79,4 +79,48 @@ object KannadaNumbers {
             }
         }
     }
+
+    // Romanized (English-letter) spelling, parallel to the tables above. The
+    // compound-word suffixes already include the vowel-sandhi elision from the
+    // "tta" join point (e.g. unit 1 is "ondu" -> stem + "tt" + "ondu" = "...ttondu",
+    // matching the same elision as the Kannada script's vowel-sign merge).
+
+    private val unitsRoman = arrayOf(
+        "sonne", "ondu", "eradu", "muru", "nalku", "aidu", "aru", "elu", "entu", "ombattu",
+    )
+
+    private val teensRoman = arrayOf(
+        "hannondu", "hanneradu", "hadimuru", "hadinalku", "hadinaidu",
+        "hadinaru", "hadinelu", "hadinentu", "hattombattu",
+    )
+
+    private val decadesRoman = mapOf(
+        2 to ("ippa" to "ippattu"),
+        3 to ("muva" to "muvattu"),
+        4 to ("nalva" to "nalvattu"),
+        5 to ("aiva" to "aivattu"),
+        6 to ("arava" to "aravattu"),
+        7 to ("eppa" to "eppattu"),
+        8 to ("emba" to "embattu"),
+        9 to ("tomba" to "tombattu"),
+    )
+
+    private val unitSuffixRoman = arrayOf(
+        "", "ondu", "eradu", "amuru", "analku", "aidu", "aru", "elu", "entu", "ombattu",
+    )
+
+    fun transliterationFor(n: Int): String {
+        require(n in 0..100) { "Number out of supported range (0-100): $n" }
+        return when {
+            n <= 9 -> unitsRoman[n]
+            n == 10 -> "hattu"
+            n <= 19 -> teensRoman[n - 11]
+            n == 100 -> "nooru"
+            n % 10 == 0 -> decadesRoman.getValue(n / 10).second
+            else -> {
+                val (stem, _) = decadesRoman.getValue(n / 10)
+                stem + "tt" + unitSuffixRoman[n % 10]
+            }
+        }
+    }
 }
