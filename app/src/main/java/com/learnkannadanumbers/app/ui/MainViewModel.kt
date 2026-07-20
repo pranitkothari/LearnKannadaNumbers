@@ -5,6 +5,10 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.learnkannadanumbers.app.clearBreadcrumb
 import com.learnkannadanumbers.app.data.KannadaNumbers
+import com.learnkannadanumbers.app.data.KannadaWords
+import com.learnkannadanumbers.app.data.PracticeCatalog
+import com.learnkannadanumbers.app.data.PracticeItem
+import com.learnkannadanumbers.app.data.ProgressRepository
 import com.learnkannadanumbers.app.lastCrashFile
 import com.learnkannadanumbers.app.readLastBreadcrumb
 import com.learnkannadanumbers.app.speech.AudioRecorder
@@ -28,12 +32,25 @@ sealed interface RoundState {
 }
 
 data class MainUiState(
-    val numberInput: String = "",
-    val inputError: String? = null,
+    val screen: Screen = Screen.Home,
     val modelsReady: Boolean = false,
     val modelLoadError: String? = null,
-    val roundState: RoundState = RoundState.Idle,
     val lastCrash: String? = null,
+
+    // Numbers practice (typed input, 0-100)
+    val numberInput: String = "",
+    val inputError: String? = null,
+
+    // Currently selected item for Alphabet/Words/Review (tap-to-select or
+    // auto-advanced) - Numbers builds its own item from numberInput instead.
+    val currentItem: PracticeItem? = null,
+
+    val roundState: RoundState = RoundState.Idle,
+
+    // Review mode's queue of weak items, worked through one at a time.
+    val reviewQueue: List<PracticeItem> = emptyList(),
+    val reviewIndex: Int = 0,
+    val reviewStarted: Boolean = false,
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -42,6 +59,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val uiState: StateFlow<MainUiState> = _uiState
 
     private val audioRecorder = AudioRecorder()
+    private val progressRepository = ProgressRepository(application)
     private var speechRecognizer: SpeechRecognizerManager? = null
     private var tts: KannadaTts? = null
 
@@ -90,6 +108,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update { it.copy(lastCrash = null) }
     }
 
+    // --- Navigation ---
+
+    fun navigateTo(screen: Screen) {
+        _uiState.update {
+            it.copy(
+                screen = screen,
+                currentItem = null,
+                roundState = RoundState.Idle,
+                reviewQueue = emptyList(),
+                reviewIndex = 0,
+                reviewStarted = false,
+            )
+        }
+    }
+
+    fun navigateHome() = navigateTo(Screen.Home)
+
+    // --- Numbers practice (typed input) ---
+
     fun onNumberInputChanged(text: String) {
         val digitsOnly = text.filter { it.isDigit() }
         val parsed = digitsOnly.toIntOrNull()
@@ -103,12 +140,79 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // --- Alphabet / Words tap-to-select ---
+
+    fun selectItem(item: PracticeItem?) {
+        _uiState.update { it.copy(currentItem = item, roundState = RoundState.Idle) }
+    }
+
+    fun openWordsCategory(category: KannadaWords.Category) {
+        navigateTo(Screen.WordsPractice(category))
+    }
+
+    // --- Review mode ---
+
+    fun startReview() {
+        navigateTo(Screen.Review)
+        viewModelScope.launch {
+            val weakIds = progressRepository.weakestItemIds(limit = 20)
+            val queue = weakIds.mapNotNull { PracticeCatalog.findById(it) }
+            _uiState.update {
+                it.copy(
+                    reviewQueue = queue,
+                    reviewIndex = 0,
+                    reviewStarted = true,
+                    currentItem = queue.firstOrNull(),
+                    roundState = RoundState.Idle,
+                )
+            }
+        }
+    }
+
+    fun reviewNext() {
+        val state = _uiState.value
+        val nextIndex = state.reviewIndex + 1
+        if (nextIndex >= state.reviewQueue.size) {
+            navigateHome()
+            return
+        }
+        _uiState.update {
+            it.copy(
+                reviewIndex = nextIndex,
+                currentItem = state.reviewQueue[nextIndex],
+                roundState = RoundState.Idle,
+            )
+        }
+    }
+
+    // --- The practice round itself, shared by every mode ---
+
+    private fun activeItem(state: MainUiState): PracticeItem? {
+        if (state.screen == Screen.NumbersPractice) {
+            val n = state.numberInput.toIntOrNull() ?: return null
+            if (n !in 0..100) return null
+            return PracticeItem(
+                id = "number:$n",
+                kannada = KannadaNumbers.wordFor(n),
+                transliteration = KannadaNumbers.transliterationFor(n),
+                displayLabel = n.toString(),
+            )
+        }
+        return state.currentItem
+    }
+
+    fun canListen(state: MainUiState): Boolean =
+        state.modelsReady &&
+            activeItem(state) != null &&
+            state.roundState !is RoundState.Listening &&
+            state.roundState !is RoundState.Processing
+
     fun onMicTapped() {
         val state = _uiState.value
-        val target = state.numberInput.toIntOrNull()
-        if (target == null || target !in 0..100 || !state.modelsReady) return
-
+        val item = activeItem(state) ?: return
         val recognizer = speechRecognizer ?: return
+        if (!canListen(state)) return
+
         _uiState.update { it.copy(roundState = RoundState.Listening) }
 
         viewModelScope.launch {
@@ -116,14 +220,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _uiState.update { it.copy(roundState = RoundState.Processing) }
 
             val heard = withContext(Dispatchers.IO) { recognizer.transcribe(samples) }
-            val expected = KannadaNumbers.wordFor(target)
+            val correct = FuzzyMatch.isMatch(heard, item.kannada)
 
-            if (FuzzyMatch.isMatch(heard, expected)) {
+            progressRepository.recordAttempt(item.id, correct)
+
+            if (correct) {
                 _uiState.update { it.copy(roundState = RoundState.Correct(heard)) }
             } else {
-                val transliteration = KannadaNumbers.transliterationFor(target)
-                _uiState.update { it.copy(roundState = RoundState.Incorrect(heard, expected, transliteration)) }
-                tts?.speak(expected)
+                _uiState.update {
+                    it.copy(roundState = RoundState.Incorrect(heard, item.kannada, item.transliteration))
+                }
+                tts?.speak(item.kannada)
             }
         }
     }

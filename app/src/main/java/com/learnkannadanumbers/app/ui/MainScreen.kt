@@ -5,18 +5,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -24,24 +18,84 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.learnkannadanumbers.app.data.KannadaWords
+import com.learnkannadanumbers.app.data.PracticeItem
 
 @Composable
 fun MainScreen(
     uiState: MainUiState,
     hasMicPermission: Boolean,
     onNumberInputChanged: (String) -> Unit,
+    onSelectItem: (PracticeItem?) -> Unit,
     onMicTapped: () -> Unit,
     onRequestMicPermission: () -> Unit,
     onDismissCrash: () -> Unit,
+    onNavigate: (Screen) -> Unit,
+    onNavigateHome: () -> Unit,
+    onOpenWordsCategory: (KannadaWords.Category) -> Unit,
+    onStartReview: () -> Unit,
+    onReviewNext: () -> Unit,
+    canListen: Boolean,
 ) {
     if (uiState.lastCrash != null) {
         CrashReportScreen(crashText = uiState.lastCrash, onDismiss = onDismissCrash)
         return
     }
 
+    if (uiState.modelLoadError != null || !uiState.modelsReady) {
+        LoadingOrErrorScreen(uiState.modelLoadError)
+        return
+    }
+
+    if (!hasMicPermission) {
+        PermissionScreen(onRequestMicPermission)
+        return
+    }
+
+    when (val screen = uiState.screen) {
+        Screen.Home -> HomeScreen(onNavigate = { target ->
+            if (target == Screen.Review) onStartReview() else onNavigate(target)
+        })
+        Screen.NumbersPractice -> NumbersScreen(
+            uiState = uiState,
+            canListen = canListen,
+            onNumberInputChanged = onNumberInputChanged,
+            onMicTapped = onMicTapped,
+            onBack = onNavigateHome,
+        )
+        Screen.AlphabetPractice -> AlphabetScreen(
+            uiState = uiState,
+            canListen = canListen,
+            onSelectItem = onSelectItem,
+            onMicTapped = onMicTapped,
+            onBack = onNavigateHome,
+        )
+        Screen.WordsCategoryPicker -> WordsCategoryScreen(
+            onSelectCategory = onOpenWordsCategory,
+            onBack = onNavigateHome,
+        )
+        is Screen.WordsPractice -> WordsPracticeScreen(
+            category = screen.category,
+            uiState = uiState,
+            canListen = canListen,
+            onSelectItem = onSelectItem,
+            onMicTapped = onMicTapped,
+            onBack = { onNavigate(Screen.WordsCategoryPicker) },
+        )
+        Screen.Review -> ReviewScreen(
+            uiState = uiState,
+            canListen = canListen,
+            onMicTapped = onMicTapped,
+            onNext = onReviewNext,
+            onBack = onNavigateHome,
+        )
+    }
+}
+
+@Composable
+private fun LoadingOrErrorScreen(modelLoadError: String?) {
     Scaffold { innerPadding ->
         Column(
             modifier = Modifier
@@ -51,71 +105,35 @@ fun MainScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            Text(
-                text = "ಕನ್ನಡ ಸಂಖ್ಯೆಗಳು",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                text = "Learn Kannada numbers",
-                fontSize = 16.sp,
-                modifier = Modifier.padding(bottom = 32.dp),
-            )
-
-            when {
-                uiState.modelLoadError != null -> {
-                    Text(
-                        text = "Couldn't load offline speech models:\n${uiState.modelLoadError}",
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                    return@Column
-                }
-                !uiState.modelsReady -> {
-                    CircularProgressIndicator()
-                    Text(text = "Loading offline speech models...", modifier = Modifier.padding(top = 16.dp))
-                    return@Column
-                }
+            Text(text = "ಕನ್ನಡ ಕಲಿ", fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            if (modelLoadError != null) {
+                Text(
+                    text = "Couldn't load offline speech models:\n$modelLoadError",
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(top = 16.dp),
+                )
+            } else {
+                CircularProgressIndicator(modifier = Modifier.padding(top = 24.dp))
+                Text(text = "Loading offline speech models...", modifier = Modifier.padding(top = 16.dp))
             }
+        }
+    }
+}
 
-            OutlinedTextField(
-                value = uiState.numberInput,
-                onValueChange = onNumberInputChanged,
-                label = { Text("Number (0-100)") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                isError = uiState.inputError != null,
-                supportingText = uiState.inputError?.let { { Text(it) } },
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            Column(
-                modifier = Modifier.padding(top = 32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                if (!hasMicPermission) {
-                    Button(onClick = onRequestMicPermission) {
-                        Text("Grant microphone access")
-                    }
-                } else {
-                    val target = uiState.numberInput.toIntOrNull()
-                    val canListen = target != null && target in 0..100 &&
-                        uiState.roundState !is RoundState.Listening &&
-                        uiState.roundState !is RoundState.Processing
-
-                    Button(
-                        onClick = onMicTapped,
-                        enabled = canListen,
-                    ) {
-                        Text(
-                            text = when (uiState.roundState) {
-                                RoundState.Listening -> "🎤  Listening..."
-                                RoundState.Processing -> "🎤  Checking..."
-                                else -> "🎤  Speak the number in Kannada"
-                            },
-                        )
-                    }
-                }
-
-                FeedbackArea(uiState.roundState)
+@Composable
+private fun PermissionScreen(onRequestMicPermission: () -> Unit) {
+    Scaffold { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text(text = "ಕನ್ನಡ ಕಲಿ", fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            Button(onClick = onRequestMicPermission, modifier = Modifier.padding(top = 24.dp)) {
+                Text("Grant microphone access")
             }
         }
     }
@@ -159,44 +177,5 @@ private fun CrashReportScreen(crashText: String, onDismiss: () -> Unit) {
                 Text("Dismiss and continue")
             }
         }
-    }
-}
-
-@Composable
-private fun FeedbackArea(roundState: RoundState) {
-    when (roundState) {
-        is RoundState.Correct -> {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(top = 24.dp),
-            ) {
-                Icon(
-                    Icons.Filled.Check,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(48.dp),
-                )
-                Text(
-                    text = "Correct!",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
-            }
-        }
-        is RoundState.Incorrect -> {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(top = 24.dp),
-            ) {
-                Text(text = "Not quite - listen to the correct pronunciation", fontSize = 16.sp)
-                Text(
-                    text = "You said: ${roundState.heard.ifBlank { "(nothing heard)" }}",
-                    modifier = Modifier.padding(top = 8.dp),
-                )
-                Text(text = "Correct: ${roundState.expected} (${roundState.expectedTransliteration})")
-            }
-        }
-        else -> Unit
     }
 }

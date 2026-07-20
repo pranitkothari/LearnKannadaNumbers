@@ -41,11 +41,18 @@ class MainActivity : ComponentActivity() {
                     uiState = uiState,
                     hasMicPermission = hasMicPermission,
                     onNumberInputChanged = viewModel::onNumberInputChanged,
+                    onSelectItem = viewModel::selectItem,
                     onMicTapped = viewModel::onMicTapped,
                     onRequestMicPermission = {
                         permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                     },
                     onDismissCrash = viewModel::dismissLastCrash,
+                    onNavigate = viewModel::navigateTo,
+                    onNavigateHome = viewModel::navigateHome,
+                    onOpenWordsCategory = viewModel::openWordsCategory,
+                    onStartReview = viewModel::startReview,
+                    onReviewNext = viewModel::reviewNext,
+                    canListen = viewModel.canListen(uiState),
                 )
             }
         }

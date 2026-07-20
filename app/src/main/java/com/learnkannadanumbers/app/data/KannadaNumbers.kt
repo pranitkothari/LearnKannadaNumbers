@@ -123,4 +123,13 @@ object KannadaNumbers {
             }
         }
     }
+
+    fun items(): List<PracticeItem> = (0..100).map { n ->
+        PracticeItem(
+            id = "number:$n",
+            kannada = wordFor(n),
+            transliteration = transliterationFor(n),
+            displayLabel = n.toString(),
+        )
+    }
 }
